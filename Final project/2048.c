@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <conio.h>
 #include <Windows.h>
@@ -21,19 +20,23 @@ int move(int[SIZE][SIZE]);
 void makeNum(int[SIZE][SIZE]);
 
 int main(void) {
-	int option;
+	char input;
 
 	while (1) {
 		menu();
-		if (scanf(" %d", &option) == 0) {
-			rewind(stdin);
+		input = _getch();
+		if (!isdigit(input)) {
 			printf("[Enter] digit number!\n");
 		}
-		else if (option == START) playGame();
-		else if (option == RULE) printRule();
-		else if (option == RANK) printRank();
-		else if (option == EXIT) break;
-		else printf("[Enter] number 1~4!\n");
+		else {
+			int option = atoi(&input);
+			if (option == START) playGame();
+			else if (option == RULE) printRule();
+			else if (option == RANK) printRank();
+			else if (option == EXIT) break;
+			else printf("[Enter] number 1~4!\n");
+		}
+		
 	}
 	return 0;
 }
