@@ -13,10 +13,10 @@ void menu(void);
 void playGame(void);
 void printRule(void);
 void printRank(void);
-void printTable(const int[SIZE][SIZE]);
+void printTable(const int[SIZE][SIZE], const int*, const int*, const int*);
 void initTable(int[SIZE][SIZE]);
 int isOverOrClear(const int[SIZE][SIZE]);
-int move(int[SIZE][SIZE]);
+int move(int[SIZE][SIZE], int*, int*);
 void makeNum(int[SIZE][SIZE]);
 
 int main(void) {
@@ -53,21 +53,23 @@ void menu(void) {
 void playGame(void) {
 	int ret;
 	int table[SIZE][SIZE] = { {0, }, };
+	int point = 0, combo = 0, max_combo = 0;
 
 	system("cls");
 	initTable(table);
-	printTable(table);
+	printTable(table, &point, &combo, &max_combo);
 	
 	while (1) {
-		if (ret = move(table) == 0) {
+		if (ret = move(table, &point, &combo) == 0) {
 			printf("Not allowed\n");
 			Sleep(1000);
 		}
 		else {
 			makeNum(table);
 		}
+		max_combo = (combo > max_combo) ? combo : max_combo;
 		system("cls");
-		printTable(table);
+		printTable(table, &point, &combo, &max_combo);
 		if (isOverOrClear(table)) break;
 	}
 
@@ -87,10 +89,12 @@ void printRank(void) {
 	return;
 }
 
-void printTable(const int table[SIZE][SIZE]) {
+void printTable(const int table[SIZE][SIZE], const int *point, const int *combo, const int *max_combo) {
 	int i, j, num;
 
-	printf("\n\n");
+	printf("\n");
+	printf("\tScore: %d\tCombo: %d\tMax combo: %d", *point, *combo, *max_combo);
+	printf("\n\n\n");
 	for (i = 0; i < SIZE; i++) {
 		for (j = 0; j < SIZE; j++) {
 			if (num = table[i][j]) printf("\t%d\t|", num);
@@ -162,10 +166,11 @@ void initTable(int table[SIZE][SIZE]) {
 	}
 }
 
-int move(int table[SIZE][SIZE]) {
+int move(int table[SIZE][SIZE], int *point, int *combo) {
 	char c;
 	int i, j, k;
 	int moved = 0;
+	int merged = 0;
 
 	c = _getch();
 	if (c == 'w') {
@@ -187,6 +192,9 @@ int move(int table[SIZE][SIZE]) {
 			for (i = 1; i < SIZE; i++) {
 				if (table[i][j] && (table[i][j] == table[i - 1][j])) {
 					moved = 1;
+					merged = 1;
+					*point += table[i][j]*2;
+					++* combo;
 					table[i - 1][j] *= 2;
 					table[i][j] = 0;
 					if (i == SIZE - 1) table[i][j] = 0;
@@ -198,11 +206,10 @@ int move(int table[SIZE][SIZE]) {
 							}
 						}
 					}
-					
 				}
 			}
 		}
-
+		if (!merged) *combo = 0;
 		if (moved) return 1;
 		return 0;
 	}
@@ -226,6 +233,9 @@ int move(int table[SIZE][SIZE]) {
 			for (i = SIZE - 2; i >= 0; i--) {
 				if (table[i][j] && (table[i][j] == table[i + 1][j])) {
 					moved = 1;
+					merged = 1;
+					*point += table[i][j]*2;
+					++* combo;
 					table[i + 1][j] *= 2;
 					table[i][j] = 0;
 					if (i == 0) table[i][j] = 0;
@@ -241,7 +251,7 @@ int move(int table[SIZE][SIZE]) {
 				}
 			}
 		}
-
+		if (!merged) *combo = 0;
 		if (move) return 1;
 		return 0;
 	}
@@ -265,6 +275,9 @@ int move(int table[SIZE][SIZE]) {
 			for (j = 1; j < SIZE; j++) {
 				if ((table[i][j]) && (table[i][j] == table[i][j-1])) {
 					moved = 1;
+					merged = 1;
+					*point += table[i][j]*2;
+					++* combo;
 					table[i][j-1] *= 2;
 					table[i][j] = 0;
 					if (j == SIZE - 1) table[i][j] = 0;
@@ -281,6 +294,7 @@ int move(int table[SIZE][SIZE]) {
 			}
 		}
 
+		if (!merged) *combo = 0;
 		if (moved) return 1;
 		return 0;
 	}
@@ -304,6 +318,9 @@ int move(int table[SIZE][SIZE]) {
 			for (j = SIZE - 2; j >= 0; j--) {
 				if (table[i][j] && (table[i][j] == table[i][j+1])) {
 					moved = 1;
+					merged = 1;
+					*point += table[i][j]*2;
+					++* combo;
 					table[i][j+1] *= 2;
 					table[i][j] = 0;
 					if (j == 0) table[i][j] = 0;
@@ -318,7 +335,7 @@ int move(int table[SIZE][SIZE]) {
 				}
 			}
 		}
-
+		if (!merged) *combo = 0;
 		if (moved) return 1;
 		return 0;
 	}
