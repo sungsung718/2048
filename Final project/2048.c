@@ -8,6 +8,7 @@
 #define END 2048
 #define TIME_LIMIT 600
 #define NAME_LIMIT 64
+#define USER_LIMIT 100
 
 enum OPTION { START = 1, RULE, RANK, EXIT };
 
@@ -30,9 +31,11 @@ void initTable(int[SIZE][SIZE]);
 int isOverOrClear(const int[SIZE][SIZE]);
 int move(int[SIZE][SIZE], int*, int*, int*);
 void makeNum(int[SIZE][SIZE]);
-char* getName(void);
+void getName(char*);
 USER getUser(const char*, int, int, int, int, time_t);
 void addRecord(FILE*, USER);
+int readRecord(FILE* fp, USER user[]);
+int cmpScore(const void* a, const void* b);
 
 int main(void) {
 	char input;
@@ -60,6 +63,7 @@ int main(void) {
 		}
 
 	}
+	fclose(fp);
 	return 0;
 }
 
@@ -76,6 +80,7 @@ void playGame(FILE* fp) {
 	int ret, result;
 	int table[SIZE][SIZE] = { {0, }, };
 	int point = 0, combo = 0, max_combo = 0, num_move = 0;
+	char name[NAME_LIMIT];
 	time_t start_time;
 	USER user;
 
@@ -105,17 +110,20 @@ void playGame(FILE* fp) {
 		if (time(NULL) - start_time > TIME_LIMIT) {
 			printf("Time Over\n");
 			Sleep(1000);
-			user = getUser(getName(), 0, point, num_move, max_combo, TIME_LIMIT);
+			getName(name);
+			user = getUser(name, 0, point, num_move, max_combo, TIME_LIMIT);
 			addRecord(fp, user);
 			break;
 		}
 		if (result = isOverOrClear(table) == 1) {
-			user = getUser(getName(), 0, point, num_move, max_combo, time(NULL) - start_time);
+			getName(name);
+			user = getUser(name, 0, point, num_move, max_combo, time(NULL) - start_time);
 			addRecord(fp, user);
 			break;
 		}
 		if (result == 2) {
-			user = getUser(getName(), 1, point, num_move, max_combo, time(NULL) - start_time);
+			getName(name);
+			user = getUser(name, 1, point, num_move, max_combo, time(NULL) - start_time);
 			addRecord(fp, user);
 			break;
 		}
@@ -133,8 +141,21 @@ void printRule(void) {
 }
 
 void printRank(FILE* fp) {
+	USER list[USER_LIMIT];
+	int len, i;
+
+	
+	len = readRecord(fp, list)-1;
+	qsort(list, len, sizeof(USER), cmpScore);
+
 	system("cls");
-	return;
+	printf("\n");
+	printf("Rank\tName\tScore\tMoves\tCombo\tTime(s)\tResult\n");
+	for (i = 0; i < len; i++) {
+		printf("%d\t%s\t%d\t%d\t%d\t%d\t", i+1, list[i].name, list[i].score, list[i].numMove, list[i].combo, list[i].playTime);
+		if (list[i].isClear) printf("Game Clear\n");
+		else printf("Game Over\n");
+	}
 }
 
 void printTable(const int table[SIZE][SIZE], const int* point, const int* combo, const int* max_combo, const int* num_move) {
@@ -441,19 +462,18 @@ void makeNum(int table[SIZE][SIZE]) {
 	}
 }
 
-char* getName(void) {
-	static char name[NAME_LIMIT];
-
-	rewind(stdin);
+void getName(char* name) {
+	char c;
 	printf("Username: ");
-	scanf("%s", name);
-
-	return name;
+	rewind(stdin);
+	scanf(" %s", name);
+	while (c = getchar() != '\n');
+	system("cls");
 }
 
 USER getUser(const char* name, int isClear, int score, int numMove, int combo, time_t playTime) {
 	USER user;
-	strcpy(&user.name, name);
+	strcpy(user.name, name);
 	user.isClear = isClear;
 	user.score = score;
 	user.numMove = numMove;
@@ -466,6 +486,21 @@ USER getUser(const char* name, int isClear, int score, int numMove, int combo, t
 void addRecord(FILE* fp, USER user) {
 	fseek(fp, 0L, SEEK_END);
 	fputs(user.name, fp);
-	printf("%s", user.name);
 	fprintf(fp, " %d %d %d %d %d\n", user.isClear, user.score, user.numMove, user.combo, user.playTime);
+}
+
+int readRecord(FILE* fp, USER user[]) {
+	int i = 0;
+	
+	fseek(fp, 0L, SEEK_SET);
+	while (!feof(fp)) {
+		fscanf(fp, "%s %d %d %d %d %d", user[i].name,  &user[i].isClear, &user[i].score, & user[i].numMove, &user[i].combo, &user[i].playTime);
+		i++;
+	}
+
+	return i;
+}
+
+int cmpScore(const void* a, const void* b) {
+	return -(((USER*)a)->score - ((USER*)b)->score);
 }
