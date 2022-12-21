@@ -7,22 +7,42 @@
 #define SIZE 4
 #define END 2048
 #define TIME_LIMIT 600
+#define NAME_LIMIT 64
 
 enum OPTION { START = 1, RULE, RANK, EXIT };
 
+typedef struct User {
+	char name[NAME_LIMIT];
+	int isClear;
+	int score;
+	int numMove;
+	int combo;
+	time_t playTime;
+} USER;
+
 void menu(void);
-void playGame(void);
+void playGame(FILE*);
 void printRule(void);
-void printRank(void);
-void printTable(const int[SIZE][SIZE], const int*, const int*, const int*);
+void printRank(FILE*);
+void printTable(const int[SIZE][SIZE], const int*, const int*, const int*, const int*);
 void printTime(const time_t);
 void initTable(int[SIZE][SIZE]);
 int isOverOrClear(const int[SIZE][SIZE]);
-int move(int[SIZE][SIZE], int*, int*);
+int move(int[SIZE][SIZE], int*, int*, int*);
 void makeNum(int[SIZE][SIZE]);
+char* getName(void);
+USER getUser(const char*, int, int, int, int, time_t);
+void addRecord(FILE*, USER);
 
 int main(void) {
 	char input;
+	FILE* fp;
+
+	fp = fopen("data.txt", "a+");
+	if (fp == NULL) {
+		printf("data.txt 파일을 열 수 없습니다.");
+		exit(1);
+	}
 
 	while (1) {
 		menu();
@@ -32,9 +52,9 @@ int main(void) {
 		}
 		else {
 			int option = atoi(&input);
-			if (option == START) playGame();
+			if (option == START) playGame(fp);
 			else if (option == RULE) printRule();
-			else if (option == RANK) printRank();
+			else if (option == RANK) printRank(fp);
 			else if (option == EXIT) break;
 			else printf("[Enter] number 1~4!\n");
 		}
@@ -52,20 +72,24 @@ void menu(void) {
 	printf("4. Exit\n\n");
 }
 
-void playGame(void) {
-	int ret;
+void playGame(FILE* fp) {
+	int ret, result;
 	int table[SIZE][SIZE] = { {0, }, };
-	int point = 0, combo = 0, max_combo = 0;
+	int point = 0, combo = 0, max_combo = 0, num_move = 0;
 	time_t start_time;
+	USER user;
 
 	system("cls");
 	initTable(table);
 	start_time = time(NULL);
+	printf("\n\tRemaining time: ");
 	printTime(start_time);
-	printTable(table, &point, &combo, &max_combo);
+	printf("\n");
+	printTable(table, &point, &combo, &max_combo, &num_move);
+
 
 	while (1) {
-		if (ret = move(table, &point, &combo) == 0) {
+		if (ret = move(table, &point, &combo, &num_move) == 0) {
 			printf("Not allowed\n");
 			Sleep(1000);
 		}
@@ -74,14 +98,27 @@ void playGame(void) {
 		}
 		max_combo = (combo > max_combo) ? combo : max_combo;
 		system("cls");
+		printf("\n\tRemaining time: ");
 		printTime(start_time);
-		printTable(table, &point, &combo, &max_combo);
+		printf("\n");
+		printTable(table, &point, &combo, &max_combo, &num_move);
 		if (time(NULL) - start_time > TIME_LIMIT) {
 			printf("Time Over\n");
 			Sleep(1000);
+			user = getUser(getName(), 0, point, num_move, max_combo, TIME_LIMIT);
+			addRecord(fp, user);
 			break;
 		}
-		if (isOverOrClear(table)) break;
+		if (result = isOverOrClear(table) == 1) {
+			user = getUser(getName(), 0, point, num_move, max_combo, time(NULL) - start_time);
+			addRecord(fp, user);
+			break;
+		}
+		if (result == 2) {
+			user = getUser(getName(), 1, point, num_move, max_combo, time(NULL) - start_time);
+			addRecord(fp, user);
+			break;
+		}
 	}
 
 }
@@ -95,16 +132,16 @@ void printRule(void) {
 	printf("----------------------------------\n\n");
 }
 
-void printRank(void) {
+void printRank(FILE* fp) {
 	system("cls");
 	return;
 }
 
-void printTable(const int table[SIZE][SIZE], const int* point, const int* combo, const int* max_combo) {
+void printTable(const int table[SIZE][SIZE], const int* point, const int* combo, const int* max_combo, const int* num_move) {
 	int i, j, num;
 
 	printf("\n");
-	printf("\tScore: %d\tCombo: %d\tMax combo: %d", *point, *combo, *max_combo);
+	printf("\tScore: %d\tCombo: %d\tMax combo: %d\tNumber of moves: %d", *point, *combo, *max_combo, *num_move);
 	printf("\n\n\n");
 	for (i = 0; i < SIZE; i++) {
 		for (j = 0; j < SIZE; j++) {
@@ -135,7 +172,7 @@ int isOverOrClear(const int table[SIZE][SIZE]) {
 			if (table[i][j] == END) {
 				printf("Game Clear\n");
 				Sleep(1000);
-				return 1;
+				return 2;
 			}
 			if (table[i][j] == 0) full = 0;
 		}
@@ -164,8 +201,8 @@ int isOverOrClear(const int table[SIZE][SIZE]) {
 				}
 			}
 		}
-	} 
-	else return 0; 
+	}
+	else return 0;
 
 	printf("Game over\n");
 	Sleep(1000);
@@ -188,7 +225,7 @@ void initTable(int table[SIZE][SIZE]) {
 	}
 }
 
-int move(int table[SIZE][SIZE], int* point, int* combo) {
+int move(int table[SIZE][SIZE], int* point, int* combo, int* num_move) {
 	char c;
 	int i, j, k;
 	int moved = 0;
@@ -232,7 +269,10 @@ int move(int table[SIZE][SIZE], int* point, int* combo) {
 			}
 		}
 		if (!merged) *combo = 0;
-		if (moved) return 1;
+		if (moved) {
+			++* num_move;
+			return 1;
+		}
 		return 0;
 	}
 
@@ -274,7 +314,10 @@ int move(int table[SIZE][SIZE], int* point, int* combo) {
 			}
 		}
 		if (!merged) *combo = 0;
-		if (move) return 1;
+		if (moved) {
+			++* num_move;
+			return 1;
+		}
 		return 0;
 	}
 
@@ -317,7 +360,10 @@ int move(int table[SIZE][SIZE], int* point, int* combo) {
 		}
 
 		if (!merged) *combo = 0;
-		if (moved) return 1;
+		if (moved) {
+			++* num_move;
+			return 1;
+		}
 		return 0;
 	}
 
@@ -358,7 +404,10 @@ int move(int table[SIZE][SIZE], int* point, int* combo) {
 			}
 		}
 		if (!merged) *combo = 0;
-		if (moved) return 1;
+		if (moved) {
+			++* num_move;
+			return 1;
+		}
 		return 0;
 	}
 
@@ -383,11 +432,40 @@ void makeNum(int table[SIZE][SIZE]) {
 		for (j = 0; j < SIZE; j++) {
 			if (table[i][j] == 0) {
 				if (++cnt == idx) {
-					if (num) table[i][j] = 2; 
-					else table[i][j] = 4; 
+					if (num) table[i][j] = 2;
+					else table[i][j] = 4;
 					break;
 				}
 			}
 		}
 	}
+}
+
+char* getName(void) {
+	static char name[NAME_LIMIT];
+
+	rewind(stdin);
+	printf("Username: ");
+	scanf("%s", name);
+
+	return name;
+}
+
+USER getUser(const char* name, int isClear, int score, int numMove, int combo, time_t playTime) {
+	USER user;
+	strcpy(&user.name, name);
+	user.isClear = isClear;
+	user.score = score;
+	user.numMove = numMove;
+	user.combo = combo;
+	user.playTime = playTime;
+
+	return user;
+}
+
+void addRecord(FILE* fp, USER user) {
+	fseek(fp, 0L, SEEK_END);
+	fputs(user.name, fp);
+	printf("%s", user.name);
+	fprintf(fp, " %d %d %d %d %d\n", user.isClear, user.score, user.numMove, user.combo, user.playTime);
 }
